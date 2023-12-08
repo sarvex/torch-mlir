@@ -23,8 +23,8 @@ import sys
 def _check_python_version():
   if sys.version_info[0] < 3:
     raise RuntimeError(
-        "Must be invoked with a python 3 interpreter but was %s" %
-        sys.executable)
+        f"Must be invoked with a python 3 interpreter but was {sys.executable}"
+    )
 
 
 def _check_dir_exists(path):

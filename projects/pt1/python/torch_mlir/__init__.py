@@ -227,7 +227,7 @@ class ExampleArgs:
                         # they know what they are doing and that their trace is
                         # correct for any specific concrete size.
                         shape = [s if s != -1 else 7 for s in arg.shape]
-                        if len(shape) == 0:
+                        if not shape:
                             example_args_for_trace.append(torch.tensor(1))
                         else:
                             example_args_for_trace.append(
@@ -256,13 +256,15 @@ BACKEND_LEGAL_OPS = {
 def _canon_extra_library(extra_library):
     extra_library_file_name = ""
     if len(extra_library) != 0:
-        extra_library_dict = {}
-        for library_func in extra_library:
-            extra_library_dict[library_func.__name__] = library_func
+        extra_library_dict = {
+            library_func.__name__: library_func
+            for library_func in extra_library
+        }
         mlir_library = generate_library(extra_library_dict)
 
-        extra_library_file_name = \
-            tempfile.gettempdir() + "/custom_op_extra_library.mlir"
+        extra_library_file_name = (
+            f"{tempfile.gettempdir()}/custom_op_extra_library.mlir"
+        )
         with open(extra_library_file_name, "w") as f:
             f.write(mlir_library)
     return extra_library_file_name
@@ -365,14 +367,14 @@ def compile(model: torch.nn.Module,
     # respective backends (Linalg, TOSA, or STABLEHLO), and those backends have
     # very specific requirements about the ops which are legal.
     # See `BACKEND_LEGAL_OPS` for more details.
-    if backend_legal_ops is not None:
-        if output_type != OutputType.TORCH:
-            raise Exception("`backend_legal_ops` is only valid with the "
-                            "`torch` output type")
-        backend_legal_ops = list(sorted(set(backend_legal_ops)))
-    else:
+    if backend_legal_ops is None:
         backend_legal_ops = BACKEND_LEGAL_OPS.get(output_type, [])
 
+    elif output_type != OutputType.TORCH:
+        raise Exception("`backend_legal_ops` is only valid with the "
+                        "`torch` output type")
+    else:
+        backend_legal_ops = list(sorted(set(backend_legal_ops)))
     if use_make_fx:
         args = example_args._get_for_tracing(use_tracing=True, ignore_traced_shapes=True)["forward"]
         model = make_fx(
@@ -420,8 +422,7 @@ def compile(model: torch.nn.Module,
     for method_name, example_args in example_args._get_for_annotation().items():
         class_annotator.exportPath(scripted._c._type(), [method_name])
         annotation = [None]  # `None` is always the annotation for "self".
-        for arg in example_args:
-            annotation.append((arg.shape, arg.dtype, True))
+        annotation.extend((arg.shape, arg.dtype, True) for arg in example_args)
         class_annotator.annotateArgs(
             scripted._c._type(), [method_name], annotation)
 

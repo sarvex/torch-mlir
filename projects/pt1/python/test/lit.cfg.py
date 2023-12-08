@@ -41,7 +41,7 @@ config.test_exec_root = os.path.join(config.torch_mlir_obj_root, 'test')
 # be provided in quotes.  This is the equivalent of how %python is setup in
 # llvm/utils/lit/lit/llvm/config.py.
 if "Windows" in config.host_os:
-  config.python_executable = '"%s"' % (config.python_executable)
+   config.python_executable = f'"{config.python_executable}"'
 
 config.substitutions.append(('%PATH%', config.environment['PATH']))
 config.substitutions.append(('%shlibext', config.llvm_shlib_ext))

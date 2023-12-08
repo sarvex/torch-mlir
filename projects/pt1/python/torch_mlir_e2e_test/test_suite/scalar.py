@@ -232,8 +232,8 @@ class BoolFloatFalseModule(torch.nn.Module):
         ([], torch.float64, True),
     ])
     def forward(self, a):
-        sub = float(a) - float(a)
-        return bool(torch.ops.aten.Bool(float(sub)))
+        sub = 0.0
+        return bool(torch.ops.aten.Bool(sub))
 
 
 @register_test_case(module_factory=lambda: BoolFloatFalseModule())
@@ -292,8 +292,8 @@ class BoolIntFalseModule(torch.nn.Module):
         ([], torch.int64, True),
     ])
     def forward(self, a):
-        sub = int(a) - int(a)
-        return bool(torch.ops.aten.Bool(int(sub)))
+        sub = 0
+        return bool(torch.ops.aten.Bool(sub))
 
 
 @register_test_case(module_factory=lambda: BoolIntFalseModule())

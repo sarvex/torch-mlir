@@ -87,7 +87,7 @@ def _get_main_module_name() -> str:
     except AttributeError:
         return _name_thunk.__module__
 
-ODS_BANNER = f"""//===-------------------------------------------------------*- tablegen -*-===//
+ODS_BANNER = """//===-------------------------------------------------------*- tablegen -*-===//
 //
 // This file is licensed under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -142,7 +142,7 @@ def raw_emit_op(operator: JitOperator,
         summary = f"Generated op for `{operator.unique_key}`"
         is_non_value_op = "IsTrailingUnderscoreInplaceVariant" in traits
         p_td(f"let summary = {emitter_td.quote(summary)};")
-        p_td(f"let arguments = (ins")
+        p_td("let arguments = (ins")
         with emitter_td.indent():
             if operator.is_vararg:
                 p_td("Variadic<AnyTorchType>:$operands")
@@ -152,7 +152,7 @@ def raw_emit_op(operator: JitOperator,
                     for arg in operator.arguments
                 ]))
         p_td(");")
-        p_td(f"let results = (outs")
+        p_td("let results = (outs")
         with emitter_td.indent():
             if operator.is_varret:
                 p_td("Variadic<AnyTorchType>:$results")
@@ -185,7 +185,7 @@ def raw_emit_op(operator: JitOperator,
             assembly_format = f"{assembly_operands} attr-dict `:` {assembly_operand_types}{maybe_arrow}{assembly_result_types}"
             p_td(f"let assemblyFormat = {emitter_td.quote(assembly_format)};")
         else:
-            p_td(f"let hasCustomAssemblyFormat = 1;")
+            p_td("let hasCustomAssemblyFormat = 1;")
             p_td(f"""let extraClassDefinition = [{{
   ParseResult {cpp_class_name}::parse(OpAsmParser &parser, OperationState &result) {{
     return parseDefaultTorchOp(parser, result, {len(operator.arguments)}, {len(operator.returns)});
@@ -245,9 +245,15 @@ def emit_ops(emitter_td: TextEmitter, registry: Registry):
         ns, unqual, overload = operator.triple
         # Underscore variant of functional ops should have "functional" part removed.
         is_functional_op = overload == "functional"
-        emit_op(registry.get_by_triple((ns, unqual + "_", overload if not is_functional_op else "")),
-                emitter_td,
-                traits=["IsTrailingUnderscoreInplaceVariant"] if not is_functional_op else [])
+        emit_op(
+            registry.get_by_triple(
+                (ns, f"{unqual}_", overload if not is_functional_op else "")
+            ),
+            emitter_td,
+            traits=["IsTrailingUnderscoreInplaceVariant"]
+            if not is_functional_op
+            else [],
+        )
 
     # ==========================================================================
     # `aten::` namespace.

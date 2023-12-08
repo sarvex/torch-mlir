@@ -231,19 +231,23 @@ class SingleTestReport:
         self.item_reports = None
         if result.compilation_error is None and result.runtime_error is None:
             self.item_reports = []
-            for i, (item, golden_item) in enumerate(
-                    zip(result.trace, result.golden_trace)):
-                self.item_reports.append(
-                    TraceItemReport(
-                        item, golden_item,
-                        context.chain(
-                            f'trace item #{i} - call to "{item.symbol}"')))
+            self.item_reports.extend(
+                TraceItemReport(
+                    item,
+                    golden_item,
+                    context.chain(f'trace item #{i} - call to "{item.symbol}"'),
+                )
+                for i, (item, golden_item) in enumerate(
+                    zip(result.trace, result.golden_trace)
+                )
+            )
 
     @property
     def failed(self):
-        if self.result.compilation_error is not None:
-            return True
-        elif self.result.runtime_error is not None:
+        if (
+            self.result.compilation_error is not None
+            or self.result.runtime_error is not None
+        ):
             return True
         return any(r.failed for r in self.item_reports)
 
@@ -252,9 +256,9 @@ class SingleTestReport:
         f = io.StringIO()
         p = lambda *x: print(*x, file=f)
         if self.result.compilation_error is not None:
-            return 'Compilation error: ' + self.result.compilation_error
+            return f'Compilation error: {self.result.compilation_error}'
         elif self.result.runtime_error is not None:
-            return 'Runtime error: ' + self.result.runtime_error
+            return f'Runtime error: {self.result.runtime_error}'
         for report in self.item_reports:
             if report.failed:
                 p(report.error_str())
@@ -293,14 +297,13 @@ def report_results(results: List[TestResult],
             else:
                 print(f'XPASS - "{result.unique_name}"')
                 results_by_outcome['XPASS'].append((result, report))
-        else:
-            if not report.failed:
-                print(f'PASS - "{result.unique_name}"')
-                results_by_outcome['PASS'].append((result, report))
-            else:
-                print(f'FAIL - "{result.unique_name}"')
-                results_by_outcome['FAIL'].append((result, report))
+        elif report.failed:
+            print(f'FAIL - "{result.unique_name}"')
+            results_by_outcome['FAIL'].append((result, report))
 
+        else:
+            print(f'PASS - "{result.unique_name}"')
+            results_by_outcome['PASS'].append((result, report))
     OUTCOME_MEANINGS = collections.OrderedDict()
     OUTCOME_MEANINGS['PASS'] = 'Passed'
     OUTCOME_MEANINGS['FAIL'] = 'Failed'
@@ -316,7 +319,7 @@ def report_results(results: List[TestResult],
     # For FAIL and XPASS (unexpected outcomes), print a summary.
     for outcome, results in results_by_outcome.items():
         # PASS and XFAIL are "good"/"successful" outcomes.
-        if outcome == 'PASS' or outcome == 'XFAIL':
+        if outcome in ['PASS', 'XFAIL']:
             continue
         # If there is nothing to report, be quiet.
         if len(results) == 0:

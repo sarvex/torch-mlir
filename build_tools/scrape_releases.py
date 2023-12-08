@@ -2,6 +2,7 @@
 
 See https://github.com/llvm/torch-mlir/issues/1374
 """
+
 import argparse
 import json
 
@@ -21,9 +22,10 @@ body = json.loads(response.content)
 # Parse releases
 releases = []
 for row in body:
-    for asset in row['assets']:
-        releases.append((asset["name"], asset["browser_download_url"]))
-
+    releases.extend(
+        (asset["name"], asset["browser_download_url"])
+        for asset in row['assets']
+    )
 # Output HTML
 html = """<!DOCTYPE html>
 <html>

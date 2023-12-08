@@ -216,7 +216,7 @@ class GenTorchMlirLTC:
         else:
             cmd = ["grep", "-o", r"aten::[0-9a-zA-Z_\.]\+"]
 
-        torch_ops = set(
+        torch_ops = {
             op[6:]
             for op in subprocess.check_output(
                 cmd + [str(self.torch_ops_file)],
@@ -224,7 +224,7 @@ class GenTorchMlirLTC:
             )
             .strip()
             .split(os.linesep)
-        )
+        }
         torch_opnames = get_opnames(torch_ops)
 
         # process ops list
@@ -483,10 +483,7 @@ def main(args):
 
     hash_file = generator.binary_dir.joinpath("generated_backend.hash")
 
-    prev_hash = None
-    if hash_file.exists():
-        prev_hash = hash_file.read_text().strip()
-
+    prev_hash = hash_file.read_text().strip() if hash_file.exists() else None
     new_hash = generator.calculate_hash()
 
     if args.force or new_hash != prev_hash:

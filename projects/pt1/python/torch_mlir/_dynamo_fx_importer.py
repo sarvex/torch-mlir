@@ -172,12 +172,12 @@ def _mlir_types_for_node(node: torch.fx.Node) -> ir.Type:
 def _extract_function_type_from_graph(g: torch.fx.Graph) -> ir.FunctionType:
     input_types = []
     for node in g.nodes:
-        if node.op == "placeholder":
-            input_types.append(_mlir_types_for_node(node)[0])
         if node.op == "output":
             # TODO(DNS): Test this or add verifier that it can't happen.
             result_types = torch.fx.map_arg(
                 node.args[0], lambda n: _mlir_types_for_node(n)[0])
+        elif node.op == "placeholder":
+            input_types.append(_mlir_types_for_node(node)[0])
     # Note: We import directly to the backend contract -- multiple results
     # are modeled with func.func native multiple results rather than as a
     # singleton value / tuple.

@@ -1843,8 +1843,7 @@ class EmptyStridedModule(torch.nn.Module):
     ])
     def forward(self, a):
         x = torch.ops.aten.empty_strided(a.size(), stride=[12, 4, 1])
-        y = x.copy_(a)
-        return y
+        return x.copy_(a)
 
 
 @register_test_case(module_factory=lambda: EmptyStridedModule())
@@ -1866,8 +1865,7 @@ class EmptyStridedSizeIntStrideModule(torch.nn.Module):
     ])
     def forward(self, a):
         x = torch.ops.aten.empty_strided(a.size(), stride=[12, a.size(2), 1])
-        y = x.copy_(a)
-        return y
+        return x.copy_(a)
 
 
 @register_test_case(module_factory=lambda: EmptyStridedSizeIntStrideModule())

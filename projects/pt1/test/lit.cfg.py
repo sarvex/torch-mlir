@@ -63,7 +63,7 @@ llvm_config.with_environment('PATH', os.path.join(config.llvm_build_dir, 'bin'),
 # be provided in quotes.  This is the equivalent of how %python is setup in
 # llvm/utils/lit/lit/llvm/config.py.
 if "Windows" in config.host_os:
-  config.python_executable = '"%s"' % (config.python_executable)
+  config.python_executable = f'"{config.python_executable}"'
 
 tool_dirs = [config.standalone_tools_dir, config.llvm_tools_dir, config.torch_mlir_obj_root]
 tools = [

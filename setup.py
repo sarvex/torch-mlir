@@ -77,19 +77,18 @@ class CMakeBuild(build_py):
             enable_ltc = int(os.environ.get('TORCH_MLIR_ENABLE_LTC', TORCH_MLIR_ENABLE_LTC_DEFAULT))
 
             cmake_args = [
-                f"-DCMAKE_BUILD_TYPE=Release",
+                "-DCMAKE_BUILD_TYPE=Release",
                 f"-DPython3_EXECUTABLE={sys.executable}",
-                f"-DPython3_FIND_VIRTUALENV=ONLY",
-                f"-DLLVM_TARGETS_TO_BUILD=host",
-                f"-DMLIR_ENABLE_BINDINGS_PYTHON=ON",
-                f"-DLLVM_ENABLE_PROJECTS=mlir",
-                f"-DLLVM_ENABLE_ZSTD=OFF",
-                f"-DLLVM_EXTERNAL_PROJECTS=torch-mlir",
+                "-DPython3_FIND_VIRTUALENV=ONLY",
+                "-DLLVM_TARGETS_TO_BUILD=host",
+                "-DMLIR_ENABLE_BINDINGS_PYTHON=ON",
+                "-DLLVM_ENABLE_PROJECTS=mlir",
+                "-DLLVM_ENABLE_ZSTD=OFF",
+                "-DLLVM_EXTERNAL_PROJECTS=torch-mlir",
                 f"-DLLVM_EXTERNAL_TORCH_MLIR_SOURCE_DIR={src_dir}",
-                # Optimization options for building wheels.
-                f"-DCMAKE_VISIBILITY_INLINES_HIDDEN=ON",
-                f"-DCMAKE_C_VISIBILITY_PRESET=hidden",
-                f"-DCMAKE_CXX_VISIBILITY_PRESET=hidden",
+                "-DCMAKE_VISIBILITY_INLINES_HIDDEN=ON",
+                "-DCMAKE_C_VISIBILITY_PRESET=hidden",
+                "-DCMAKE_CXX_VISIBILITY_PRESET=hidden",
                 f"-DTORCH_MLIR_ENABLE_LTC={'ON' if enable_ltc else 'OFF'}",
                 f"-DTORCH_MLIR_ENABLE_ONLY_MLIR_PYTHON_BINDINGS={'ON' if TORCH_MLIR_ENABLE_ONLY_MLIR_PYTHON_BINDINGS else 'OFF'}",
             ]

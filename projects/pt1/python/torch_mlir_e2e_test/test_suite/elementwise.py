@@ -3613,13 +3613,9 @@ class TupleModule(torch.nn.Module):
         ([-1, -1], torch.float32, True),
         ([-1, -1], torch.float32, True),
     ])
-
     def forward(self, a, b):
         cond = True
-        if cond:
-            tuple = a, b
-        else:
-            tuple = a + b, None
+        tuple = (a, b) if cond else (a + b, None)
         _, y = tuple
         return y
 

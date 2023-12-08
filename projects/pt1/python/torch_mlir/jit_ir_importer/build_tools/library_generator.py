@@ -144,14 +144,14 @@ def __torch_mlir_internal_promote_dtypes(ranks: List[Optional[int]],
     for rhs_optional_rank, rhs_dtype in zip(ranks, dtypes):
         if lhs_optional_rank is None and rhs_optional_rank is None:
             lhs_dtype = _promote_scalar_scalar(lhs_dtype, rhs_dtype)
-        elif lhs_optional_rank is None and rhs_optional_rank is not None:
+        elif lhs_optional_rank is None:
             lhs_dtype = _promote_scalar_tensor(
                 lhs_dtype, rhs_optional_rank, rhs_dtype)
             lhs_optional_rank = rhs_optional_rank
-        elif lhs_optional_rank is not None and rhs_optional_rank is None:
+        elif rhs_optional_rank is None:
             lhs_dtype = _promote_scalar_tensor(
                 rhs_dtype, lhs_optional_rank, lhs_dtype)
-        elif lhs_optional_rank is not None and rhs_optional_rank is not None:
+        else:
             lhs_dtype = _promote_tensor_tensor(
                 lhs_optional_rank, lhs_dtype, rhs_optional_rank, rhs_dtype)
             lhs_optional_rank = max(lhs_optional_rank, rhs_optional_rank)
@@ -177,11 +177,9 @@ def not_present_in_registry(f):
 
 def _verify_signature_matches_registry(f, registry: Registry):
     source = inspect.getsource(f)
-    signature = None
-    for line in source.splitlines():
-        if line.startswith("def "):
-            signature = line
-            break
+    signature = next(
+        (line for line in source.splitlines() if line.startswith("def ")), None
+    )
     assert signature is not None, f"Could not find signature for {f.__name__}"
     assert "〡" in signature, f"Malformed signature {signature}. Signature missing the character `〡`"
     function_name, function_kind = f.__name__.split("〡")
