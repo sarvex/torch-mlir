@@ -45,10 +45,12 @@ register_all_tests()
 def _get_argparse():
     config_choices = ["native_torch", "torchscript", "linalg", "make_fx_tosa", "tosa", "lazy_tensor_core", "torchdynamo"]
     parser = argparse.ArgumentParser(description="Run torchscript e2e tests.")
-    parser.add_argument("-c", "--config",
+    parser.add_argument(
+        "-c",
+        "--config",
         choices=config_choices,
         default="linalg",
-        help=f"""
+        help="""
 Meaning of options:
 "linalg": run through torch-mlir"s default Linalg-on-Tensors backend.
 "tosa": run through torch-mlir"s default TOSA backend.
@@ -56,7 +58,8 @@ Meaning of options:
 "torchscript": compile the model to a torch.jit.ScriptModule, and then run that as-is (useful for verifying TorchScript is modeling the program correctly).
 "lazy_tensor_core": run the model through the Lazy Tensor Core frontend and execute the traced graph.
 "torchdynamo": run the model through the TorchDynamo frontend and execute the graph using Linalg-on-Tensors.
-""")
+""",
+    )
     parser.add_argument("-f", "--filter", default=".*", help="""
 Regular expression specifying which tests to include in this run.
 """)
@@ -82,8 +85,7 @@ which make it easier to attach a debugger or get a stack trace.""")
 def main():
     args = _get_argparse().parse_args()
 
-    all_test_unique_names = set(
-        test.unique_name for test in GLOBAL_TEST_REGISTRY)
+    all_test_unique_names = {test.unique_name for test in GLOBAL_TEST_REGISTRY}
 
     # Find the selected config.
     if args.config == "linalg":
@@ -128,7 +130,7 @@ def main():
         test for test in available_tests
         if re.match(args.filter, test.unique_name)
     ]
-    if len(tests) == 0:
+    if not tests:
         print(
             f"ERROR: the provided filter {args.filter!r} does not match any tests"
         )

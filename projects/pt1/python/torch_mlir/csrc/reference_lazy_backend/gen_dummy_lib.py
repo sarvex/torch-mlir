@@ -19,5 +19,5 @@ class LazyTensorCoreTestConfig:
     if not os.path.exists(path):
         os.makedirs(path)
 
-    with open(os.path.join(path, file_name + '.py'), 'w') as file:
+    with open(os.path.join(path, f'{file_name}.py'), 'w') as file:
         file.write(contents)

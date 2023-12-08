@@ -59,9 +59,7 @@ def _pytype_to_fn_pytype_common(pytype: str) -> str:
     # So just hack them to be passed as "Any".
     if pytype == "Generator":
         return "Any"
-    if pytype == "Optional[Generator]":
-        return "Any"
-    return pytype
+    return "Any" if pytype == "Optional[Generator]" else pytype
 
 def _pytype_to_shape_fn_pytype(pytype: str) -> str:
     """Convert a JitOperator pytype to the type relevant in shape functions.
@@ -169,9 +167,7 @@ class JitOperator:
         them in a single point of truth.
         """
         def uppercase_first_letter(s):
-            if not s:
-                return s
-            return s[0].upper() + s[1:]
+            return s if not s else s[0].upper() + s[1:]
 
         op_name_atoms = [self.namespace, self.unqualified_name]
         if self.overload_name:
@@ -201,9 +197,7 @@ class JitOperator:
         ret_decls = list(map(ret_decl_builder, self.returns))
         ret_decls = list(filter(None, ret_decls))
         parameters = ", ".join(parameter_decls)
-        result = ", ".join(ret_decls)
-        if len(ret_decls) == 0:
-            result = "None"
+        result = "None" if not ret_decls else ", ".join(ret_decls)
         if len(ret_decls) >= 2:
             result = f"Tuple[{result}]"
 
@@ -361,10 +355,10 @@ class JitOperator:
             return False
         # The `is` operator compares object identity, so it does not have
         # value semantics.
-        if self.unique_key in ("aten::__is__ : (t1, t2) -> (bool)",
-                               "aten::__isnot__ : (t1, t2) -> (bool)"):
-            return False
-        return True
+        return self.unique_key not in (
+            "aten::__is__ : (t1, t2) -> (bool)",
+            "aten::__isnot__ : (t1, t2) -> (bool)",
+        )
 
     def is_readonly(self):
         """Indicates whether the operator is ReadOnly."""

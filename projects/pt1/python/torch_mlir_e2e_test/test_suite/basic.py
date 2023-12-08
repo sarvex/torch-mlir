@@ -453,7 +453,7 @@ class PadModule(torch.nn.Module):
     def forward(self, x):
         pad = [0, 1, 2, 3]
         mode = "constant"
-        return torch.ops.aten.pad(x, pad, mode, float(1.5))
+        return torch.ops.aten.pad(x, pad, mode, 1.5)
 
 
 @register_test_case(module_factory=lambda: PadModule())
@@ -1576,8 +1576,7 @@ class BroadcastDynamicDimModule(torch.nn.Module):
     def forward(self, x, y):
         dim_at_index_1 = torch.ops.aten.size(x, 1)
         dim_at_index_3 = torch.ops.aten.size(x, 3)
-        res = torch.ops.aten.broadcast_to(y, [1, dim_at_index_1, 1, dim_at_index_3])
-        return res
+        return torch.ops.aten.broadcast_to(y, [1, dim_at_index_1, 1, dim_at_index_3])
 
 
 @register_test_case(module_factory=lambda: BroadcastDynamicDimModule())
@@ -4444,8 +4443,7 @@ class ScalarTensorFloat32Module(torch.nn.Module):
         None,
     ])
     def forward(self):
-        scalar = torch.ops.aten.scalar_tensor(1.0, dtype=torch.float32)
-        return scalar
+        return torch.ops.aten.scalar_tensor(1.0, dtype=torch.float32)
 
 
 @register_test_case(module_factory=lambda: ScalarTensorFloat32Module())
@@ -4466,8 +4464,7 @@ class ScalarTensorDefaultDtypeModule(torch.nn.Module):
         None,
     ])
     def forward(self):
-        scalar = torch.ops.aten.scalar_tensor(1.0)
-        return scalar
+        return torch.ops.aten.scalar_tensor(1.0)
 
 
 @register_test_case(module_factory=lambda: ScalarTensorDefaultDtypeModule())
@@ -4488,8 +4485,7 @@ class ScalarTensorInt64Module(torch.nn.Module):
         None,
     ])
     def forward(self):
-        scalar = torch.ops.aten.scalar_tensor(1, dtype=torch.int64)
-        return scalar
+        return torch.ops.aten.scalar_tensor(1, dtype=torch.int64)
 
 
 @register_test_case(module_factory=lambda: ScalarTensorInt64Module())
@@ -4510,8 +4506,7 @@ class ScalarTensorInt32Module(torch.nn.Module):
         None,
     ])
     def forward(self):
-        scalar = torch.ops.aten.scalar_tensor(1, dtype=torch.int32)
-        return scalar
+        return torch.ops.aten.scalar_tensor(1, dtype=torch.int32)
 
 
 @register_test_case(module_factory=lambda: ScalarTensorInt32Module())

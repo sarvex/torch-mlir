@@ -114,8 +114,7 @@ def main(device='lazy', full_size=False):
 
     # Get debug information from LTC
     if 'torch_mlir._mlir_libs._REFERENCE_LAZY_BACKEND' in sys.modules:
-        computation = lazy_backend.get_latest_computation()
-        if computation:
+        if computation := lazy_backend.get_latest_computation():
             print(computation.debug_string())
 
     print('Loss: ', losses)

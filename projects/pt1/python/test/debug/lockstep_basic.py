@@ -24,8 +24,7 @@ def miscompile_div_as_mul_backend(gm: torch.fx.GraphModule,
         if node.op == "call_function":
             if node.target == torch.ops.aten.div:
                 node.target = torch.ops.aten.mul
-    new_gm = torch.fx.GraphModule(torch.nn.Module(), new_g)
-    return new_gm
+    return torch.fx.GraphModule(torch.nn.Module(), new_g)
 
 
 # TODO: As we get smarter about making this output more readable, we should

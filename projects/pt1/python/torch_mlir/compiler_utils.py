@@ -17,7 +17,7 @@ def get_module_name_for_debug_dump(module):
 
     The name is not guaranteed to be unique.
     """
-    if not "torch.debug_module_name" in module.operation.attributes:
+    if "torch.debug_module_name" not in module.operation.attributes:
         return "UnnammedModule"
     return StringAttr(module.operation.attributes["torch.debug_module_name"]).value
 
@@ -48,7 +48,7 @@ def run_pipeline_with_repro_report(module,
         #   up /tmp)
         # - if we do have have colliding filenames, writes should at least
         #   avoid being racy.
-        filename = os.path.join(tempfile.gettempdir(), module_name + ".mlir")
+        filename = os.path.join(tempfile.gettempdir(), f"{module_name}.mlir")
         with open(filename, 'w') as f:
             f.write(asm_for_error_report)
         debug_options="-mlir-print-ir-after-all -mlir-disable-threading"

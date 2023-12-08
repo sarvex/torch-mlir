@@ -30,20 +30,14 @@ class ErroneousModule(torch.nn.Module):
     # CHECK-NEXT: ERROR: value (1) is not equal to golden value (2)
     @torch.jit.export
     def test_int(self) -> int:
-        if torch.jit.is_scripting():
-            return 1
-        else:
-            return 2
+        return 1 if torch.jit.is_scripting() else 2
 
     # CHECK-NEXT: @ trace item #1 - call to "test_float"
     # CHECK-NEXT: @ output of call to "test_float"
     # CHECK-NEXT: ERROR: value (1.0) is not close to golden value (2.0)
     @torch.jit.export
     def test_float(self) -> float:
-        if torch.jit.is_scripting():
-            return 1.0
-        else:
-            return 2.0
+        return 1.0 if torch.jit.is_scripting() else 2.0
 
     # CHECK-NEXT: @ trace item #2 - call to "test_list_element"
     # CHECK-NEXT: @ output of call to "test_list_element"
@@ -51,10 +45,7 @@ class ErroneousModule(torch.nn.Module):
     # CHECK-NEXT: ERROR: value (3) is not equal to golden value (4)
     @torch.jit.export
     def test_list_element(self) -> List[int]:
-        if torch.jit.is_scripting():
-            return [1, 2, 3]
-        else:
-            return [1, 2, 4]
+        return [1, 2, 3] if torch.jit.is_scripting() else [1, 2, 4]
 
     # CHECK-NEXT: @ trace item #3 - call to "test_tuple_element"
     # CHECK-NEXT: @ output of call to "test_tuple_element"
@@ -66,30 +57,21 @@ class ErroneousModule(torch.nn.Module):
     # CHECK-NEXT: ERROR: value (2) is not equal to golden value (3)
     @torch.jit.export
     def test_tuple_element(self) -> Tuple[int, int]:
-        if torch.jit.is_scripting():
-            return (1, 2)
-        else:
-            return (2, 3)
+        return (1, 2) if torch.jit.is_scripting() else (2, 3)
 
     # CHECK-NEXT: @ trace item #4 - call to "test_str"
     # CHECK-NEXT: @ output of call to "test_str"
     # CHECK-NEXT: ERROR: value ('x') is not equal to golden value ('y')
     @torch.jit.export
     def test_str(self) -> str:
-        if torch.jit.is_scripting():
-            return "x"
-        else:
-            return "y"
+        return "x" if torch.jit.is_scripting() else "y"
 
     # CHECK-NEXT: @ trace item #5 - call to "test_dict_keys"
     # CHECK-NEXT: @ output of call to "test_dict_keys"
     # CHECK-NEXT: ERROR: dict keys (['x']) are not equal to golden keys (['y'])
     @torch.jit.export
     def test_dict_keys(self) -> Dict[str, int]:
-        if torch.jit.is_scripting():
-            return {"x": 1}
-        else:
-            return {"y": 21}
+        return {"x": 1} if torch.jit.is_scripting() else {"y": 21}
 
     # CHECK-NEXT: @ trace item #6 - call to "test_dict_values"
     # CHECK-NEXT: @ output of call to "test_dict_values"
@@ -97,10 +79,7 @@ class ErroneousModule(torch.nn.Module):
     # CHECK-NEXT: ERROR: value (1) is not equal to golden value (2)
     @torch.jit.export
     def test_dict_values(self) -> Dict[str, int]:
-        if torch.jit.is_scripting():
-            return {"x": 1}
-        else:
-            return {"x": 2}
+        return {"x": 1} if torch.jit.is_scripting() else {"x": 2}
 
     # CHECK-NEXT: @ trace item #7 - call to "test_recursive"
     # CHECK-NEXT: @ output of call to "test_recursive"
@@ -111,10 +90,7 @@ class ErroneousModule(torch.nn.Module):
     # CHECK-NEXT: ERROR: value (3) is not equal to golden value (4)
     @torch.jit.export
     def test_recursive(self):
-        if torch.jit.is_scripting():
-            return [({"x": [[2, 3]]})]
-        else:
-            return [({"x": [[2, 4]]})]
+        return [({"x": [[2, 3]]})] if torch.jit.is_scripting() else [({"x": [[2, 4]]})]
 
     # CHECK-NEXT: @ trace item #8 - call to "test_tensor_value_mismatch"
     # CHECK-NEXT: @ output of call to "test_tensor_value_mismatch"

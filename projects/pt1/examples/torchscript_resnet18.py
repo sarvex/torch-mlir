@@ -40,15 +40,13 @@ def load_labels():
         "https://raw.githubusercontent.com/cathyzhyi/ml-data/main/imagenet-classes.txt",
         stream=True,
     ).text
-    labels = [line.strip() for line in classes_text.splitlines()]
-    return labels
+    return [line.strip() for line in classes_text.splitlines()]
 
 
 def top3_possibilities(res):
     _, indexes = torch.sort(res, descending=True)
     percentage = torch.nn.functional.softmax(res, dim=1)[0] * 100
-    top3 = [(labels[idx], percentage[idx].item()) for idx in indexes[0][:3]]
-    return top3
+    return [(labels[idx], percentage[idx].item()) for idx in indexes[0][:3]]
 
 
 def predictions(torch_func, jit_func, img, labels):
@@ -61,7 +59,7 @@ def predictions(torch_func, jit_func, img, labels):
 
 image_url = "https://upload.wikimedia.org/wikipedia/commons/2/26/YellowLabradorLooking_new.jpg"
 
-print("load image from " + image_url, file=sys.stderr)
+print(f"load image from {image_url}", file=sys.stderr)
 img = load_and_preprocess_image(image_url)
 labels = load_labels()
 

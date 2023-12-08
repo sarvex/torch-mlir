@@ -832,8 +832,7 @@ class ChunkListUnpack_Module(torch.nn.Module):
     def forward(self, x):
         chunk_0, chunk_1, chunk_2 = torch.chunk(x, 3, 1)
         add = torch.ops.aten.add(chunk_0, chunk_1)
-        sum = torch.ops.aten.add(add, chunk_2)
-        return sum
+        return torch.ops.aten.add(add, chunk_2)
 
 @register_test_case(module_factory=lambda: ChunkListUnpack_Module())
 def ChunkListUnpack_Module_basic(module, tu: TestUtils):
@@ -872,8 +871,7 @@ class ChunkListUnpackDynamic_Module(torch.nn.Module):
     def forward(self, x):
         chunk_0, chunk_1, chunk_2 = torch.chunk(x, 3, 1)
         add = torch.ops.aten.add(chunk_0, chunk_1)
-        sum = torch.ops.aten.add(add, chunk_2)
-        return sum
+        return torch.ops.aten.add(add, chunk_2)
 
 @register_test_case(module_factory=lambda: ChunkListUnpackDynamic_Module())
 def ChunkListUnpackDynamic_Module_basic(module, tu: TestUtils):

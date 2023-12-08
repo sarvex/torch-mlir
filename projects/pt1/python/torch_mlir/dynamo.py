@@ -100,16 +100,13 @@ def _adjust_calling_convention(gm: torch.fx.GraphModule) -> bool:
                     did_unwrap_single_element = True
                     break
             if isinstance(node_arg, list):
+                did_convert_list_to_tuple = True
                 if len(node_arg) == 1:
                     node.args = (node_arg[0],)
                     did_unwrap_single_element = True
-                    did_convert_list_to_tuple = True
-                    break
                 else:
                     node.args= (tuple(node_arg),)
-                    did_convert_list_to_tuple = True
-                    break
-
+                break
     if did_unwrap_single_element:
         gm.graph.lint()
         gm.recompile()

@@ -59,9 +59,12 @@ class HistogramBinningCalibrationByFeature(torch.nn.Module):
         #       The solution would be to move these tensors to ensure they are on the same device as the existing ones.
         dense_segment_value = torch.zeros(logit.numel(), dtype=torch.int32)
         validoffsets = torch.gt(
-            segment_lengths[1:self._num_logits+1], segment_lengths[0:self._num_logits])
+            segment_lengths[1 : self._num_logits + 1],
+            segment_lengths[: self._num_logits],
+        )
         gathered_segment_values = (
-            segment_value[segment_lengths[0:self._num_logits].long()]+1).int()
+            segment_value[segment_lengths[: self._num_logits].long()] + 1
+        ).int()
         dense_segment_value = torch.where(
             validoffsets, gathered_segment_values, dense_segment_value)
         zeros = torch.empty_like(
@@ -79,7 +82,7 @@ class HistogramBinningCalibrationByFeature(torch.nn.Module):
         curr_segment_value = curr_segment_value / curr_bin_num_examples
         curr_segment_value = curr_segment_value.float()
         curr_segment_value = curr_segment_value * self.bin_ctr_weight_value + \
-            origin_prediction * self.oneminusbin_ctr_weight_value
+                origin_prediction * self.oneminusbin_ctr_weight_value
         isvalid = torch.gt(curr_bin_num_examples,
                            self.bin_ctr_in_use_after)
         calibrated_prediction_data = torch.where(

@@ -26,22 +26,18 @@ def _embedding_bag_helper(weight: List[int], indices: List[int],
     assert len(weight) == 2
     assert len(indices) == 1
     assert len(offsets) == 1
-    output_bag_shape: List[int] = []
     out_dim0 = offsets[0]
     if (include_last_offset):
         out_dim0 = out_dim0 - 1
     out_dim1 = weight[1]
-    output_bag_shape.append(out_dim0)
-    output_bag_shape.append(out_dim1)
-
+    output_bag_shape: List[int] = [out_dim0, out_dim1]
     offset2bag_shape: List[int] = []
     if mode == 1:
         offset2bag_shape.append(0)
+    elif per_sample_weights is None and padding_idx is None:
+        offset2bag_shape = [0]
     else:
-        if per_sample_weights is None and padding_idx is None:
-            offset2bag_shape = [0]
-        else:
-            offset2bag_shape = upstream_shape_functions._copy(indices)
+        offset2bag_shape = upstream_shape_functions._copy(indices)
 
     bag_size_shape = upstream_shape_functions._copy(offsets)
 
@@ -214,16 +210,7 @@ def prims〇collapse〡shape(a: List[int], start: int, end: int) -> List[int]:
     assert end >= 0, "end out of bounds"
     assert start <= end, "start must be less than or equal to end"
 
-    # Example: 
-    #
-    #  torch._prims.collapse(torch.empty(2,3,4), 1,2).shape
-    #  is 
-    #  torch.Size([2, 12])
-
-    collapsed: List[int] = []
-    for i in range(start):
-        collapsed.append(a[i])
-
+    collapsed: List[int] = [a[i] for i in range(start)]
     # For the example, here collapsed is [2]
     combined = 1
     for i in range(start, end + 1):
@@ -233,9 +220,7 @@ def prims〇collapse〡shape(a: List[int], start: int, end: int) -> List[int]:
 
     # For the example, here collapsed is [2, 12]
 
-    for i in range(end + 1, len(a)):
-        collapsed.append(a[i])
-
+    collapsed.extend(a[i] for i in range(end + 1, len(a)))
     # For the example, here collapsed is [2, 12]
 
     return collapsed
@@ -246,16 +231,9 @@ def prims〇split_dim〡shape(a: List[int], dim: int, outer_length: int) -> List
     assert outer_length > 0, "'outer_length' must be positive"
     assert a[dim] % outer_length == 0, "'outer_length' must divide the size of the dimension, a[dim]"
 
-    split: List[int] = []
-    for i in range(dim):
-        split.append(a[i])
-
-    split.append(outer_length)
-    split.append(a[dim] // outer_length)
-
-    for i in range(dim + 1, len(a)):
-        split.append(a[i])
-
+    split: List[int] = [a[i] for i in range(dim)]
+    split.extend((outer_length, a[dim] // outer_length))
+    split.extend(a[i] for i in range(dim + 1, len(a)))
     return split
 
 def aten〇to〇dtype〡shape(self: List[int], dtype: int, non_blocking: bool = False, copy: bool = False, memory_format: Optional[int] = None) -> List[int]:
@@ -481,10 +459,10 @@ def aten〇prod〇dim_int〡shape(self: List[int], dim: int, keepdim: bool = Fal
 def aten〇pixel_shuffle〡shape(self: List[int], upscale_factor: int) -> List[int]:
 
     assert len(self) >= 3, "input must be at least rank-3 in pixel_shuffle"
-    upscale_factor_squared = upscale_factor * upscale_factor
+    upscale_factor_squared = upscale_factor**2
     assert self[-3] % (upscale_factor_squared) == 0, "number of input channels  must be divisible by upscale_factor^2 in pixel_shuffle"
-    
-    out = self[0:-3]
+
+    out = self[:-3]
     out.append(self[-3] // upscale_factor_squared)
     out.append(self[-2] * upscale_factor)
     out.append(self[-1] * upscale_factor)
@@ -550,12 +528,9 @@ def aten〇repeat〡shape(self: List[int], repeats: List[int]) -> List[int]:
     tensor_dim = len(self)
     if ndim == 0:
         return upstream_shape_functions._copy(self)
-    out: List[int] = []
     leading_rank = ndim - tensor_dim
-    for i in range(leading_rank):
-        out.append(repeats[i])
-    for i in range(tensor_dim):
-        out.append(self[i] * repeats[i + leading_rank])
+    out: List[int] = [repeats[i] for i in range(leading_rank)]
+    out.extend(self[i] * repeats[i + leading_rank] for i in range(tensor_dim))
     return out
 
 @check_shape_function([
@@ -615,87 +590,98 @@ def aten〇upsample_nearest2d_backward〡shape(grad_output: List[int], output_si
 # TODO: This should be upstreamed.
 # See https://github.com/pytorch/pytorch/pull/76889 for an example.
 def avg_pool2d(input: List[int], kernel_size: List[int], stride: List[int], padding: List[int], ceil_mode: bool, count_include_pad: bool, divisor_override: Optional[int]):
-  assert len(kernel_size) == 1 or len(kernel_size) == 2, "avg_pool2d: kernel_size must either be a single int, or a tuple of two ints"
-  kH = kernel_size[0]
-  kW = kH if len(kernel_size) == 1 else kernel_size[1]
+    assert len(kernel_size) in {
+        1,
+        2,
+    }, "avg_pool2d: kernel_size must either be a single int, or a tuple of two ints"
+    kH = kernel_size[0]
+    kW = kH if len(kernel_size) == 1 else kernel_size[1]
 
-  assert len(stride) == 0 or len(stride) == 1 or len(stride) == 2, "avg_pool2d: stride must either be omitted, a single int, or a tuple of two ints"
-  dH = kH if len(stride) == 0 else stride[0]
-  if len(stride) == 0:
-    dW = kW
-  elif len(stride) == 1:
-    dW = dH
-  else:
-    dW = stride[1]
+    assert len(stride) in {
+        0,
+        1,
+        2,
+    }, "avg_pool2d: stride must either be omitted, a single int, or a tuple of two ints"
+    dH = kH if not stride else stride[0]
+    if not stride:
+        dW = kW
+    elif len(stride) == 1:
+      dW = dH
+    else:
+        dW = stride[1]
 
-  assert len(padding) == 1 or len(padding) == 2, "avg_pool2d: padding must be either be a single int, or a tuple of two ints"
-  padH = padding[0]
-  padW = padH if len(padding) == 1 else padding[1]
+    assert len(padding) in {
+        1,
+        2,
+    }, "avg_pool2d: padding must be either be a single int, or a tuple of two ints"
+    padH = padding[0]
+    padW = padH if len(padding) == 1 else padding[1]
 
-  dilationH = 1
-  dilationW = 1
+    dilationH = 1
+    dilationW = 1
 
-  assert len(input) == 3 or len(input) == 4
+    assert len(input) in {3, 4}
 
-  nbatch = input[-4] if len(input) == 4 else 1
-  nInputPlane = input[-3]
-  inputHeight = input[-2]
-  inputWidth = input[-1]
+    nbatch = input[-4] if len(input) == 4 else 1
+    nInputPlane = input[-3]
+    inputHeight = input[-2]
+    inputWidth = input[-1]
 
-  outputHeight = upstream_shape_functions.pooling_output_shape(
-      inputHeight, kH, padH, dH, dilationH, ceil_mode)
-  outputWidth = upstream_shape_functions.pooling_output_shape(
-      inputWidth, kW, padW, dW, dilationW, ceil_mode)
+    outputHeight = upstream_shape_functions.pooling_output_shape(
+        inputHeight, kH, padH, dH, dilationH, ceil_mode)
+    outputWidth = upstream_shape_functions.pooling_output_shape(
+        inputWidth, kW, padW, dW, dilationW, ceil_mode)
 
-  upstream_shape_functions.pool2d_shape_check(
-      input, kH, kW, dH, dW, padH, padW, dilationH, dilationW, nInputPlane,
-      inputHeight, inputWidth, outputHeight, outputWidth)
+    upstream_shape_functions.pool2d_shape_check(
+        input, kH, kW, dH, dW, padH, padW, dilationH, dilationW, nInputPlane,
+        inputHeight, inputWidth, outputHeight, outputWidth)
 
-  if len(input) == 3:
-    return [nInputPlane, outputHeight, outputWidth]
-  else:
-    return [nbatch, nInputPlane, outputHeight, outputWidth]
+    if len(input) == 3:
+      return [nInputPlane, outputHeight, outputWidth]
+    else:
+      return [nbatch, nInputPlane, outputHeight, outputWidth]
 
 # TODO: This should be upstreamed.
 # See https://github.com/pytorch/pytorch/pull/76889 for an example.
 def avg_pool1d(input: List[int], kernel_size: List[int], stride: List[int], padding: List[int], ceil_mode: bool, count_include_pad: bool):
-  assert len(kernel_size) == 1, "avg_pool1d: kernel_size must be a single int"
-  kL = kernel_size[0]
+    assert len(kernel_size) == 1, "avg_pool1d: kernel_size must be a single int"
+    kL = kernel_size[0]
 
-  assert len(stride) == 0 or len(stride) == 1, "avg_pool1d: stride must either be omitted, or a single int"
-  dL = kL if len(stride) == 0 else stride[0]
+    assert len(stride) in {
+        0,
+        1,
+    }, "avg_pool1d: stride must either be omitted, or a single int"
+    dL = kL if not stride else stride[0]
 
-  assert len(padding) == 1, "avg_pool1d: padding must be a single int"
-  padL = padding[0]
+    assert len(padding) == 1, "avg_pool1d: padding must be a single int"
+    padL = padding[0]
 
-  dilationL = 1
+    dilationL = 1
 
-  assert len(input) == 2 or len(input) == 3
+    assert len(input) in {2, 3}
 
-  nbatch = input[-3] if len(input) == 3 else 1
-  nInputPlane = input[-2]
-  inputLength = input[-1]
+    nbatch = input[-3] if len(input) == 3 else 1
+    nInputPlane = input[-2]
+    inputLength = input[-1]
 
-  outputLength = upstream_shape_functions.pooling_output_shape(
-    inputLength, kL, padL, dL, dilationL, ceil_mode)
+    outputLength = upstream_shape_functions.pooling_output_shape(
+      inputLength, kL, padL, dL, dilationL, ceil_mode)
 
-  if len(input) == 2:
-    return [nInputPlane, outputLength]
-  else:
-    return [nbatch, nInputPlane, outputLength]
+    if len(input) == 2:
+      return [nInputPlane, outputLength]
+    else:
+      return [nbatch, nInputPlane, outputLength]
 
 # TODO: This should be upstreamed.
 # See https://github.com/pytorch/pytorch/pull/76889 for an example.
 def adaptive_avg_pool1d(self: List[int], out: List[int]):
     assert len(out) == 1
-    assert len(self) == 2 or len(self) == 3
+    assert len(self) in {2, 3}
 
-    for i in range(len(self)):
-        assert self[i] != 0
+    for item in self:
+        assert item != 0
 
-    shape: List[int] = []
-    for i in range(len(self) - 1):
-        shape.append(self[i])
+    shape: List[int] = [self[i] for i in range(len(self) - 1)]
     shape.append(out[0])
 
     return shape
@@ -995,10 +981,7 @@ def aten〇scalar_tensor〡shape(s: float, dtype: Optional[int] = None, layout: 
 
 @check_dtype_function([Invocation(-1), Invocation(-1.0)])
 def aten〇scalar_tensor〡dtype(s: Union[int, float, complex], dtype: Optional[int] = None, layout: Optional[int] = None, device: Optional[device] = None, pin_memory: Optional[bool] = None) -> int:
-    if dtype is not None:
-        return dtype
-    else:
-        return torch.float32
+    return dtype if dtype is not None else torch.float32
 
 @check_shape_function([
     Invocation(TensorOfShape()),
@@ -1064,10 +1047,8 @@ def aten〇imag〡dtype(self_rank_dtype: Tuple[int, int]) -> int:
     return complex_to_float(self_rank_dtype[1])
 
 def aten〇view_as_complex〡shape(self: List[int]) -> List[int]:
-    out: List[int] = []
     n = len(self)
-    for i in range(n-1):
-        out.append(self[i])
+    out: List[int] = [self[i] for i in range(n-1)]
     return out
 
 def aten〇view_as_complex〡dtype(self_rank_dtype: Tuple[int, int]) -> int:
@@ -1078,9 +1059,14 @@ def aten〇view_as_complex〡dtype(self_rank_dtype: Tuple[int, int]) -> int:
         return torch.complex64
     elif self_dtype == torch.double:
         return torch.complex128
-    elif self_dtype == torch.bool or self_dtype == torch.uint8 or \
-         self_dtype == torch.int8 or self_dtype == torch.int16 or \
-         self_dtype == torch.int32 or self_dtype == torch.int64:
+    elif self_dtype in [
+        torch.bool,
+        torch.uint8,
+        torch.int8,
+        torch.int16,
+        torch.int32,
+        torch.int64,
+    ]:
         return torch.complex64
     else:
         assert False, "Unsupported dtype"
@@ -1194,9 +1180,7 @@ def aten〇nll_loss_backward〡shape(grad_output: List[int], self: List[int], ta
 
 # TODO: upstream this
 def aten〇mse_loss〡shape(self: List[int], target: List[int], reduction: int = 1) -> List[int]:
-    if reduction == 0:
-        return upstream_shape_functions.unary(self)
-    return []
+    return upstream_shape_functions.unary(self) if reduction == 0 else []
 
 def aten〇cross_entropy_loss〡shape(self: List[int], target: List[int], weight: Optional[List[int]] = None, reduction: int = 1, ignore_index: int = -100, label_smoothing: float = 0.) -> List[int]:
     return upstream_shape_functions.cross_entropy_loss(self, target, weight, reduction, ignore_index, label_smoothing)
@@ -1259,7 +1243,7 @@ def index_tensor_like(self: List[int], indices: List[Optional[List[int]]]) -> Li
             else:
                 unused_dim_sizes.append(self[i])
 
-    if len(unused_dim_sizes) == 0:
+    if not unused_dim_sizes:
         return broadcasted_shape
 
     first_index_tensor_location = -1
@@ -1276,15 +1260,14 @@ def index_tensor_like(self: List[int], indices: List[Optional[List[int]]]) -> Li
     if not index_tensors_are_together:
         return broadcasted_shape + unused_dim_sizes
 
-    # If index tensors are all in consecutive dimensions, the broadcasted
-    # shape is inserted in the location of the consecutive index tensors.
-    result_shape: List[int] = []
-    for i in range(first_index_tensor_location):
-        result_shape.append(unused_dim_sizes[i])
-    for broadcasted_size in broadcasted_shape:
-        result_shape.append(broadcasted_size)
-    for i in range(first_index_tensor_location, len(unused_dim_sizes)):
-        result_shape.append(unused_dim_sizes[i])
+    result_shape: List[int] = [
+        unused_dim_sizes[i] for i in range(first_index_tensor_location)
+    ]
+    result_shape.extend(iter(broadcasted_shape))
+    result_shape.extend(
+        unused_dim_sizes[i]
+        for i in range(first_index_tensor_location, len(unused_dim_sizes))
+    )
     return result_shape
 
 # See https://numpy.org/doc/stable/user/basics.indexing.html
@@ -1304,7 +1287,7 @@ def aten〇index〇Tensor〡shape(self: List[int], indices: List[Optional[List[i
     return index_tensor_like(self, indices)
 
 def aten〇index〇Tensor_hacked_twin〡shape(self: List[int], indices: List[List[int]]) -> List[int]:
-    optional_indices: List[Optional[List[int]]] = [x for x in indices]
+    optional_indices: List[Optional[List[int]]] = list(indices)
     return index_tensor_like(self, optional_indices)
 
 def aten〇cat〡shape(tensors: List[List[int]], dim: int = 0) -> List[int]:
@@ -1413,8 +1396,10 @@ def _check_tensors_with_the_same_dtype(
         if tensor_shapes is None and num_of_tensors is not None:
             tensors = [NonZeroDTensorWithDtype(type_, device=tensor_device)] * num_of_tensors
         elif tensor_shapes is not None and num_of_tensors is None:
-            for tensor_shape in tensor_shapes:
-                tensors.append(TensorOfShape(*tensor_shape, dtype=type_, device=tensor_device))
+            tensors.extend(
+                TensorOfShape(*tensor_shape, dtype=type_, device=tensor_device)
+                for tensor_shape in tensor_shapes
+            )
         else:
             assert False, \
                 "Either `num_of_tensors` or `tensor_shapes` must be specified"
@@ -1510,10 +1495,7 @@ def _get_dtype_of_floating_point_op(input_dtype: int) -> int:
 def aten〇view_as_real〡dtype(self_rank_dtype: Tuple[int, int]) -> int:
     self_rank, self_dtype = self_rank_dtype
     assert is_complex_dtype(self_dtype)
-    if self_dtype == torch.complex64:
-        return torch.float
-    else:
-        return torch.double
+    return torch.float if self_dtype == torch.complex64 else torch.double
 
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1, dim=0, outer_length=1))
 def prims〇split_dim〡dtype(a_rank_dtype: Tuple[int, int], dim: int, outer_length: int) -> int:
@@ -1688,7 +1670,12 @@ def aten〇cosine_similarity〡dtype(x1_rank_dtype: Tuple[int, int], x2_rank_dty
     x1_rank, x1_dtype = x1_rank_dtype
     x2_rank, x2_dtype = x2_rank_dtype
     assert x1_dtype == x2_dtype
-    assert not x1_dtype not in [torch.bfloat16, torch.float16, torch.float32, torch.float64]
+    assert x1_dtype in [
+        torch.bfloat16,
+        torch.float16,
+        torch.float32,
+        torch.float64,
+    ]
     return x1_dtype
 
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1))
@@ -1699,23 +1686,17 @@ def aten〇ceil〡dtype(self_rank_dtype: Tuple[int, int]) -> int:
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1, max=0))
 def aten〇clamp_max〡dtype(self_rank_dtype: Tuple[int, int], max: Union[int, float, complex]) -> int:
     self_rank, self_dtype = self_rank_dtype
-    if self_dtype == torch.bool:
-        return torch.int64
-    return self_dtype
+    return torch.int64 if self_dtype == torch.bool else self_dtype
 
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1, min=0))
 def aten〇clamp_min〡dtype(self_rank_dtype: Tuple[int, int], min: Union[int, float, complex]) -> int:
     self_rank, self_dtype = self_rank_dtype
-    if self_dtype == torch.bool:
-        return torch.int64
-    return self_dtype
+    return torch.int64 if self_dtype == torch.bool else self_dtype
 
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1, min=-1, max=1))
 def aten〇clamp〡dtype(self_rank_dtype: Tuple[int, int], min: Optional[Union[int, float, complex]] = None, max: Optional[Union[int, float, complex]] = None) -> int:
     self_rank, self_dtype = self_rank_dtype
-    if self_dtype == torch.bool:
-        return torch.int64
-    return self_dtype
+    return torch.int64 if self_dtype == torch.bool else self_dtype
 
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1))
 def aten〇clone〡dtype(self_rank_dtype: Tuple[int, int], memory_format: Optional[int] = None) -> int:
@@ -1750,9 +1731,7 @@ def aten〇cumsum〡dtype(self_rank_dtype: Tuple[int, int], dim: int, dtype: Opt
     if dtype is not None:
         return dtype
     self_rank, self_dtype = self_rank_dtype
-    if is_integer_dtype(self_dtype):
-        return torch.int64
-    return self_dtype
+    return torch.int64 if is_integer_dtype(self_dtype) else self_dtype
 
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1))
 def aten〇detach〡dtype(self_rank_dtype: Tuple[int, int]) -> int:
@@ -1825,8 +1804,7 @@ def aten〇gelu_backward〡dtype(grad_output_rank_dtype: Tuple[int, int], self_r
     self_rank, self_dtype = self_rank_dtype
     ranks: List[Optional[int]] = [grad_output_rank, self_rank]
     dtypes = [grad_output_dtype, self_dtype]
-    promoted_dtype = promote_dtypes(ranks, dtypes)
-    return promoted_dtype
+    return promote_dtypes(ranks, dtypes)
 
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1))
 def aten〇gelu〡dtype(self_rank_dtype: Tuple[int, int], approximate: str = "none") -> int:
@@ -1914,8 +1892,7 @@ def aten〇leaky_relu_backward〡dtype(grad_output_rank_dtype: Tuple[int, int], 
     self_rank, self_dtype = self_rank_dtype
     ranks: List[Optional[int]] = [grad_output_rank, self_rank]
     dtypes = [grad_output_dtype, self_dtype]
-    promoted_dtype = promote_dtypes(ranks, dtypes)
-    return promoted_dtype
+    return promote_dtypes(ranks, dtypes)
 
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1))
 def aten〇lift_fresh_copy〡dtype(self_rank_dtype: Tuple[int, int]) -> int:
@@ -2005,9 +1982,7 @@ def aten〇pow〇Tensor_Tensor〡dtype(self_rank_dtype: Tuple[int, int], exponen
     ranks: List[Optional[int]] = [self_rank, exponent_rank]
     dtypes = [self_dtype, exponent_dtype]
     promoted_dtype = promote_dtypes(ranks, dtypes)
-    if promoted_dtype == torch.bool:
-        return torch.int64
-    return promoted_dtype
+    return torch.int64 if promoted_dtype == torch.bool else promoted_dtype
 
 @check_dtype_function(
     _check_tensors_with_the_same_dtype(num_of_tensors=2) +
@@ -2135,9 +2110,7 @@ def aten〇_softmax_backward_data〡dtype(grad_output_rank_dtype: Tuple[int, int
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1))
 def aten〇square〡dtype(self_rank_dtype: Tuple[int, int]) -> int:
     self_rank, self_dtype = self_rank_dtype
-    if self_dtype == torch.bool:
-        return torch.int64
-    return self_dtype
+    return torch.int64 if self_dtype == torch.bool else self_dtype
 
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1, dim=0))
 def aten〇squeeze〇dim〡dtype(self_rank_dtype: Tuple[int, int], dim: int) -> int:
@@ -2155,8 +2128,7 @@ def aten〇tanh_backward〡dtype(grad_output_rank_dtype: Tuple[int, int], output
     output_rank, output_dtype = output_rank_dtype
     ranks: List[Optional[int]] = [grad_output_rank, output_rank]
     dtypes = [grad_output_dtype, output_dtype]
-    promoted_dtype = promote_dtypes(ranks, dtypes)
-    return promoted_dtype
+    return promote_dtypes(ranks, dtypes)
 
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1, threshold=0, value=0))
 def aten〇threshold〡dtype(self_rank_dtype: Tuple[int, int], threshold: Union[int, float, complex], value: Union[int, float, complex]) -> int:
@@ -2249,9 +2221,7 @@ def aten〇nll_loss_backward〡dtype(grad_output_rank_dtype: Tuple[int, int], se
     ranks: List[Optional[int]] = [self_rank, grad_output_rank]
     dtypes = [self_dtype, grad_output_dtype]
     result = promote_dtypes(ranks, dtypes)
-    if result == torch.bool:
-        return torch.int64
-    return result
+    return torch.int64 if result == torch.bool else result
 
 @check_dtype_function(_check_tensors_with_the_same_dtype(
     None, [(2, 4, 7, 6), (2, 4, 6, 5)], None, None,
@@ -2808,9 +2778,7 @@ def aten〇convolution_backward〡dtype(grad_output_rank_dtype: Tuple[int, int],
 def aten〇bincount〡dtype(self_rank_dtype: Tuple[int, int], weights_rank_dtype: Optional[Tuple[int, int]] = None, minlength: int = 0) -> int:
     self_rank, self_dtype = self_rank_dtype
     assert is_integer_dtype(self_dtype) and self_dtype != torch.bool
-    if weights_rank_dtype is None:
-        return torch.int64
-    return torch.float64
+    return torch.int64 if weights_rank_dtype is None else torch.float64
 
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1, tensor_device=torch.device("cpu")))
 def aten〇nonzero〡dtype(self_rank_dtype: Tuple[int, int]) -> int:
@@ -2911,9 +2879,7 @@ def aten〇addcdiv〡dtype(self_rank_dtype: Tuple[int, int], tensor1_rank_dtype:
     ranks: List[Optional[int]] = [self_rank, tensor1_rank, tensor2_rank]
     dtypes = [self_dtype, tensor1_dtype, tensor2_dtype]
     result = promote_dtypes(ranks, dtypes)
-    if is_integer_dtype(result):
-        return torch.float32
-    return result
+    return torch.float32 if is_integer_dtype(result) else result
 
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1, other=1) +
                       _check_tensors_with_the_same_dtype(num_of_tensors=1, other=1.0))
@@ -2947,9 +2913,7 @@ def aten〇div〇Scalar〡dtype(self_rank_dtype: Tuple[int, int], other: Union[i
     ranks: List[Optional[int]] = [self_rank, None]
     dtypes = [self_dtype, get_dtype_of_scalar(other)]
     promoted_dtype = promote_dtypes(ranks, dtypes)
-    if is_integer_dtype(promoted_dtype):
-        return torch.float32
-    return promoted_dtype
+    return torch.float32 if is_integer_dtype(promoted_dtype) else promoted_dtype
 
 @check_dtype_function(
     _check_tensors_with_the_same_dtype(num_of_tensors=1, other=1) +
@@ -3004,7 +2968,7 @@ def aten〇elu〡dtype(self_rank_dtype: Tuple[int, int], alpha: Union[int, float
     self_rank, self_dtype = self_rank_dtype
     assert self_dtype != torch.bool
     param_dtypes = [get_dtype_of_scalar(p) for p in [alpha, scale, input_scale]]
-    if any([is_float_dtype(d) for d in param_dtypes]):
+    if any(is_float_dtype(d) for d in param_dtypes):
         assert not is_integer_dtype(self_dtype)
     return self_dtype
 
@@ -3220,9 +3184,7 @@ def aten〇sum〡dtype(self_rank_dtype: Tuple[int, int], dtype: Optional[int] = 
     if dtype is not None:
         return dtype
     self_rank, self_dtype = self_rank_dtype
-    if is_integer_dtype(self_dtype):
-        return torch.int64
-    return self_dtype
+    return torch.int64 if is_integer_dtype(self_dtype) else self_dtype
 
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1, dim=None) +
                       _check_tensors_with_the_same_dtype(num_of_tensors=1, dim=None, dtype=torch.float32) +
@@ -3239,9 +3201,7 @@ def aten〇prod〇dim_int〡dtype(self_rank_dtype: Tuple[int, int], dim: int, ke
     if dtype is not None:
         return dtype
     self_rank, self_dtype = self_rank_dtype
-    if is_integer_dtype(self_dtype):
-        return torch.int64
-    return self_dtype
+    return torch.int64 if is_integer_dtype(self_dtype) else self_dtype
 
 @check_dtype_function(
     _check_tensors_with_the_same_dtype(
@@ -3267,9 +3227,7 @@ def aten〇argmin〡dtype(self_rank_dtype: Tuple[int, int], dim: Optional[int] =
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1, dim=0))
 def aten〇any〇dim〡dtype(self_rank_dtype: Tuple[int, int], dim: int, keepdim: bool = False) -> int:
     self_rank, self_dtype = self_rank_dtype
-    if self_dtype == torch.uint8:
-        return self_dtype
-    return torch.bool
+    return self_dtype if self_dtype == torch.uint8 else torch.bool
 
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1))
 def aten〇min〡dtype(self_rank_dtype: Tuple[int, int]) -> int:
@@ -3316,9 +3274,7 @@ def aten〇std〡dtype(self_rank_dtype: Tuple[int, int], unbiased: bool = True) 
     self_rank, self_dtype = self_rank_dtype
     if self_dtype == torch.complex64:
         return torch.float32
-    if self_dtype == torch.complex128:
-        return torch.float64
-    return self_dtype
+    return torch.float64 if self_dtype == torch.complex128 else self_dtype
 
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1, dim=None))
 def aten〇std〇dim〡dtype(self_rank_dtype: Tuple[int, int], dim: Optional[List[int]], unbiased: bool = True, keepdim: bool = False) -> int:
@@ -3372,27 +3328,21 @@ def aten〇linalg_vector_norm〡dtype(self_rank_dtype: Tuple[int, int], ord: Uni
                        Invocation(0.0, dtype=torch.float16),
                        Invocation(0.0, dtype=torch.complex64)])
 def aten〇tensor〇float〡dtype(t: float, dtype: Optional[int] = None, device: Optional[device] = None, requires_grad: bool = False) -> int:
-    if dtype is None:
-        return torch.float32
-    return dtype
+    return torch.float32 if dtype is None else dtype
 
 @check_dtype_function([Invocation(0),
                        Invocation(0, dtype=torch.int32),
                        Invocation(0, dtype=torch.float16),
                        Invocation(0, dtype=torch.complex64)])
 def aten〇tensor〇int〡dtype(t: int, dtype: Optional[int] = None, device: Optional[device] = None, requires_grad: bool = False) -> int:
-    if dtype is None:
-        return torch.int64
-    return dtype
+    return torch.int64 if dtype is None else dtype
 
 @check_dtype_function([Invocation(True),
                        Invocation(True, dtype=torch.int32),
                        Invocation(True, dtype=torch.float16),
                        Invocation(True, dtype=torch.complex64)])
 def aten〇tensor〇bool〡dtype(t: bool, dtype: Optional[int] = None, device: Optional[device] = None, requires_grad: bool = False) -> int:
-    if dtype is None:
-        return torch.bool
-    return dtype
+    return torch.bool if dtype is None else dtype
 
 @check_dtype_function([Invocation([1]),
                        Invocation([1], dtype=torch.int32),
@@ -3438,9 +3388,7 @@ def aten〇full〡dtype(size: List[int], fill_value: Union[int, float, complex],
     if dtype is not None:
         return dtype
     fill_value_dtype = get_dtype_of_scalar(fill_value)
-    if is_float_dtype(fill_value_dtype):
-        return torch.float32
-    return fill_value_dtype
+    return torch.float32 if is_float_dtype(fill_value_dtype) else fill_value_dtype
 
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1) +
                       _check_tensors_with_the_same_dtype(num_of_tensors=1, dtype=torch.float16) +
@@ -3649,16 +3597,12 @@ def aten〇atan2〡dtype(self_rank_dtype: Tuple[int, int], other_rank_dtype: Tup
     ranks: List[Optional[int]] = [self_rank, other_rank]
     dtypes = [self_dtype, other_dtype]
     promoted_dtype = promote_dtypes(ranks, dtypes)
-    if is_integer_dtype(promoted_dtype):
-        return torch.float32
-    return promoted_dtype
+    return torch.float32 if is_integer_dtype(promoted_dtype) else promoted_dtype
 
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1))
 def aten〇atan〡dtype(self_rank_dtype: Tuple[int, int]) -> int:
     self_rank, self_dtype = self_rank_dtype
-    if is_integer_dtype(self_dtype):
-        return torch.float32
-    return self_dtype
+    return torch.float32 if is_integer_dtype(self_dtype) else self_dtype
 
 @check_dtype_function(_check_two_tensor_op())
 def aten〇linear〡dtype(input_rank_dtype: Tuple[int, int], weight_rank_dtype: Tuple[int, int], bias_rank_dtype: Optional[Tuple[int, int]] = None) -> int:
@@ -3666,8 +3610,7 @@ def aten〇linear〡dtype(input_rank_dtype: Tuple[int, int], weight_rank_dtype: 
     weight_rank, weight_dtype = weight_rank_dtype
     ranks: List[Optional[int]] = [input_rank, weight_rank]
     dtypes = [input_dtype, weight_dtype]
-    promoted_dtype = promote_dtypes(ranks, dtypes)
-    return promoted_dtype
+    return promote_dtypes(ranks, dtypes)
 
 @check_dtype_function(
     [Invocation([NonZeroDTensorWithDtype(torch.float32), NonZeroDTensorWithDtype(torch.int32)]),
@@ -3677,7 +3620,7 @@ def aten〇linear〡dtype(input_rank_dtype: Tuple[int, int], weight_rank_dtype: 
 def aten〇cat〡dtype(tensors_rank_dtype: List[Tuple[int, int]], dim: int = 0) -> int:
     ranks: List[Optional[int]] = []
     dtypes: List[int] = []
-    assert len(tensors_rank_dtype) != 0
+    assert tensors_rank_dtype
     for tensor_rank_dtype in tensors_rank_dtype:
         tensor_rank, tensor_dtype = tensor_rank_dtype
         ranks.append(tensor_rank)
@@ -3712,9 +3655,7 @@ def prim〇NumToTensor〇Scalar〡dtype(a: Union[int, float, complex]) -> int:
                       _check_tensors_with_the_same_dtype(num_of_tensors=1, dim=0, dtype=torch.complex64))
 def aten〇softmax〇int〡dtype(self_rank_dtype: Tuple[int, int], dim: int, dtype: Optional[int] = None) -> int:
     self_rank, self_dtype = self_rank_dtype
-    if dtype is None:
-        return self_dtype
-    return dtype
+    return self_dtype if dtype is None else dtype
 
 @check_dtype_function(
     _check_tensors_with_the_same_dtype(num_of_tensors=1, dim=0, half_to_float=False) +
@@ -3748,9 +3689,7 @@ def aten〇_log_softmax〡dtype(self_rank_dtype: Tuple[int, int], dim: int, half
                       _check_tensors_with_the_same_dtype(num_of_tensors=1, dim=0, dtype=torch.complex64))
 def aten〇log_softmax〇int〡dtype(self_rank_dtype: Tuple[int, int], dim: int, dtype: Optional[int] = None) -> int:
     self_rank, self_dtype = self_rank_dtype
-    if dtype is None:
-        return self_dtype
-    return dtype
+    return self_dtype if dtype is None else dtype
 
 # TODO: to test these functions, we need to be able to specify the tensor contents used in each invocation
 def aten〇embedding〡dtype(weight_rank_dtype: Tuple[int, int], indices_rank_dtype: Tuple[int, int], padding_idx: int = -1, scale_grad_by_freq: bool = False, sparse: bool = False) -> int:
@@ -3769,9 +3708,7 @@ def aten〇embedding_bag〇padding_idx〡dtype(weight_rank_dtype: Tuple[int, int
 
 @check_dtype_function(_check_two_tensor_op(out_int32=True) + _check_two_tensor_op(out_int32=False))
 def aten〇bucketize〇Tensor〡dtype(self_rank_dtype: Tuple[int, int], boundaries_rank_dtype: Tuple[int, int], out_int32: bool = False, right: bool = False) -> int:
-    if out_int32:
-        return torch.int32
-    return torch.int64
+    return torch.int32 if out_int32 else torch.int64
 
 @check_dtype_function(_check_tensors_with_the_same_dtype(num_of_tensors=1, dimensions=[]))
 def prims〇squeeze〡dtype(a_rank_dtype: Tuple[int, int], dimensions: List[int]) -> int:

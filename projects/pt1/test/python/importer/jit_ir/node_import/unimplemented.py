@@ -17,9 +17,7 @@ class Inner(object):
 
     @classmethod
     def foo(cls):
-        this_dict = {}
-        this_dict["key"] = 42
-        return this_dict
+        return {"key": 42}
 
 
 class Model(torch.nn.Module):

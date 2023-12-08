@@ -13,11 +13,9 @@ import torch
 def _make_single_op_gm(node) -> torch.fx.GraphModule:
     """Make a GraphModule that just executes the given node."""
     g = torch.fx.Graph()
-    env = {}
     # TODO: Handle kwargs.
     assert not node.kwargs, "kwargs not supported yet"
-    for arg in node.args:
-        env[arg.name] = g.placeholder(arg.name)
+    env = {arg.name: g.placeholder(arg.name) for arg in node.args}
     call = g.node_copy(node, lambda n: env[n.name])
     g.output(call)
     g.lint()

@@ -107,8 +107,7 @@ def jit(
         assert mlir_module is not None
         run_pipeline_with_repro_report(
             mlir_module,
-            # f"builtin.module(torch-function-to-torch-backend-pipeline{option_string})",
-            f"builtin.module(torch-lower-to-backend-contract)",
+            "builtin.module(torch-lower-to-backend-contract)",
             "Lowering TorchFX IR -> Torch Backend IR",
         )
 
